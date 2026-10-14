@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,3 +30,21 @@ class ProductRepository:
         product_list = exec_result.scalars().all()
         # 2.5 返回调用处查询结果
         return list(product_list)
+
+
+    # 定义产品条件查询方法
+    async def find_by_candidates(self, category:str, premium_min: Decimal | None, limit_per_category: int):
+        # 组合查询条件
+        conditions = [
+            Product.category == category,
+            Product.status == "active"
+        ]
+
+        if premium_min:
+            conditions.append(Product.min_premium < premium_min)
+
+        sql = select(Product).where(*conditions).order_by(Product.min_premium.desc()).limit(limit_per_category)
+        # 执行查询语句
+        exec_result = await self.session.execute(sql)
+        # 返回到具体数据
+        return exec_result.scalars().all()
