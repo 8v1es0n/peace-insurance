@@ -33,6 +33,12 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+from app.modules.product.router import router as product_router
+
+# 创建 app 后注册路由
+app.include_router(product_router)
+
+
 # 创建健康检查接口
 @app.get("/health", summary="健康检测接口")
 async def health_check():
