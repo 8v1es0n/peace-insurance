@@ -31,6 +31,7 @@ async def close_database():
 AsyncSessionFactory = async_sessionmaker(
     bind=engine,
     autoflush=False,
+    # 过期提交: 
     expire_on_commit=False
 )
 

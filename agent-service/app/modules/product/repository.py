@@ -14,15 +14,14 @@ class ProductRepository:
 
     # 定义查询方法
     async def find_by_category(self, category:str):
-        # 组装查询条件
+        # 组装查询条件 - 多个条件,所以用列表存起来
         conditions = [Product.status == "active"]
-        # 扩展：自己没有的数据
-        # 需要别人在调用的时候传递给我 - 参数
+        # 注意：自己没有的数据
+        # 需要别人在调用的时候传递给我 - 以参数的形式
         # 在创建我自己这个对象的时候 - 实例属性
         if category:
             conditions.append(Product.category == category)
         # 2.2 准备SQL语句
-        # conditions = [Product.status == "active", Product.category == category]
         sql = select(Product).where(*conditions).order_by(Product.id.asc())
         # 2.3 执行SQL语句
         exec_result = await self.session.execute(sql)

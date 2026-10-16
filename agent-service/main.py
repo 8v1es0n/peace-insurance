@@ -2,8 +2,11 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 
 from app.core.config import settings
+from app.core.exceptions import ApplicationError
 from app.core.logging import configure_logging, get_logger
 import uvicorn
 
@@ -33,10 +36,26 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+@app.exception_handler(ApplicationError)
+async def handle_application_error(
+    request: Request,
+    exc: ApplicationError, # 捕获到的异常（这里用自定义异常基类捕获，所有业务异常都会匹配到）
+) -> JSONResponse:
+    logger.warning(f"业务处理异常，请求路径:{request.url},请求方式:{request.method},异常信息:{exc}")
+    return JSONResponse(
+        status_code=exc.status_code, # 异常中自带status
+        content={
+            "code": exc.code,        # 异常中自带code
+            "message": exc.message,  # 异常中自带message
+        },
+    )
+
 from app.modules.product.router import router as product_router
+from app.modules.chat.router import router as chat_router
 
 # 创建 app 后注册路由
 app.include_router(product_router)
+app.include_router(chat_router)
 
 
 # 创建健康检查接口
