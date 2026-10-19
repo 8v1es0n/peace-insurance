@@ -19,6 +19,11 @@ class CreateChatRequest(BaseModel):
         # 去除字符串两端的空格
         return value.strip()
 
+# 创建聊天消息请求
+class ChatRequest(BaseModel):
+    thread_id: UUID
+    message: str = Field(min_length=1)
+
 
 # 响应模型
 class ChatResponse(BaseModel):

@@ -1,17 +1,19 @@
 from uuid import UUID
 
+from langchain_core.messages import HumanMessage
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from langgraph.graph.state import CompiledStateGraph
 from .exceptions import ChatThreadNotFoundError
 from .models import Chat
 from .repository import ChatRepository
 
 
 class ChatService:
-    def __init__(self, session:AsyncSession):
+    def __init__(self, session:AsyncSession, agent: CompiledStateGraph):
         self.session = session
         self.repository = ChatRepository(self.session)
-
+        self.agent = agent
+    """会话服务"""
     # 创建对话业务逻辑实现
     async def create_chat(self, user_id: int, title: str):
         # 基于异步上下文管理器开启事务
@@ -59,3 +61,29 @@ class ChatService:
                 raise ChatThreadNotFoundError
             # 正确查询出会话对象后删除
             await self.repository.delete_chat(chat)
+
+
+    """聊天服务"""
+    async def chat_stream(self, thread_id: UUID, user_id: int, msg: str):
+        # 验证消息合法性
+        chat = await self.repository.find_owned(thread_id, user_id)
+        # 判断是否为None
+        if chat is None:
+            raise ChatThreadNotFoundError
+
+        # 通过智能体将消息发送给大模型
+        # 1. 准备消息列表
+        _input = {
+            "messages": [HumanMessage(content=msg)]
+        }
+        # 准备好配置信息, 包含会话id
+        _config = {
+            "configurable":{"thread_id": str(thread_id)}
+        }
+        # 通过智能体将消息发送给大模型
+        response = await self.agent.ainvoke(
+            _input,
+            _config
+        )
+        # 从返回值中解析到最后一条消息，再拿出来其中的内容
+        return response["messages"][-1].content

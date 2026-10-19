@@ -45,6 +45,19 @@ class DatabaseSettings(EnvSettings):
             password=self.password
         ).encoded_string()
 
+    #
+    @computed_field
+    @property
+    def checkpointer_url(self) -> str:
+        # 自动拼接URL路径
+        return PostgresDsn.build(
+            scheme="postgresql",
+            host=self.host,
+            port=self.port,
+            username=self.user,
+            password=self.password
+        ).encoded_string()
+
 class LLMSettings(EnvSettings):
     """模型相关配置"""
     api_key: str = Field(alias="DEEPSEEK_API_KEY")

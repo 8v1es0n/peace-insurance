@@ -22,10 +22,18 @@ async def lifespan(app: FastAPI):
     from app.infra.database import check_database, close_database
     # 1. 初始化连接
     await check_database()
-
+    # 2. 初始化checkpointer连接池
+    from app.infra.checkpointer import init_checkpointer, close_checkpointer
+    checkpointer = await init_checkpointer()
+    from app.agents.insurance_advisor import init_insurance_agent
+    agent = init_insurance_agent(checkpointer)
+    app.state.agent = agent
     yield
+
     # 项目关闭时执行
-    # 2. 销毁引擎
+    # 销毁checkpointer
+    await close_checkpointer()
+    # 销毁引擎
     await close_database()
 
 
