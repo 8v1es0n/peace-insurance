@@ -12,7 +12,7 @@ class ChatRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    # 新增绘画
+    # 新增会话
     # 上层封装一个Chat,以便我们使用
     async def create_chat(self, chat: Chat):
         self.session.add(chat)
