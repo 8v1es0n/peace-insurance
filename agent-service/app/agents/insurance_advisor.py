@@ -2,7 +2,7 @@
 from langchain.agents import create_agent
 from langchain.chat_models import init_chat_model
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
-
+from app.agents.tools import query_candidate_products
 from app.core.config import settings
 from app.core.logging import get_logger
 
@@ -24,7 +24,7 @@ def init_insurance_agent(checkpointer: AsyncPostgresSaver):
         }
     )
     # 准备工具
-    tools = []
+    tools = [query_candidate_products]
     # 准备智能体
     agent = create_agent(
         model=model,
