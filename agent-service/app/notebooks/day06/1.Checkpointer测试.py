@@ -65,10 +65,25 @@ async def main():
     checkpointer = await init_checkpointer(checkpoint_pool)
     agent = init_agent(checkpointer)
     _config = {"configurable": {"thread_id": "1"}}
-    print("==========第一轮对话==========")
-    await init_chat(agent, _config, "我现在有12个苹果，有3个人，如何分配?")
-    print("==========第二轮对话==========")
-    await init_chat(agent, _config, "我现在有12个苹果，有4个人，如何分配?")
+    # print("==========第一轮对话==========")
+    # await init_chat(agent, _config, "我现在有12个苹果，有3个人，如何分配?")
+    # print("==========第二轮对话==========")
+    # await init_chat(agent, _config, "我现在有12个苹果，有4个人，如何分配?")
+
+    # 获取历史消息记录
+    # snapshot = await agent.aget_state(_config)
+    # print(type(snapshot))
+    # messages = snapshot.values.get("messages", [])
+    # for message in messages:
+    #     message.pretty_print()
+
+    # 删除历史消息记录
+    thread_id = _config["configurable"]["thread_id"]
+    await checkpointer.adelete_thread(thread_id)
+
+    snapshot = await agent.aget_state(_config)
+    print(snapshot.values)
+
 
 if __name__ == '__main__':
     # Windows 下 psycopg 异步必须用 SelectorEventLoop，显式指定 loop_factory

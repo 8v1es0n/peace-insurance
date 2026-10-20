@@ -8,8 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.infra.database import get_async_session
 from starlette.requests import Request
-
-from .schemas import ChatResponse, CreateChatRequest, ChatRequest
+from fastapi.sse import EventSourceResponse
+from .schemas import ChatResponse, CreateChatRequest, ChatRequest, ChatHistoryResponse
 from .service import ChatService
 
 
@@ -24,7 +24,8 @@ def get_service(request: Request, session:AsyncSession = Depends(get_async_sessi
 
 """会话管理"""
 # 创建聊天会话
-@router.post("/chat-threads", summary="创建会话", response_model=ChatResponse)
+@router.post("/chat-threads", summary="创建会话",
+             response_model=ChatResponse)
 async def create_chat(
         request: CreateChatRequest,
         user_id: Annotated[int, Header(alias="x-user-id")],
@@ -35,7 +36,8 @@ async def create_chat(
 
 
 # 查询会话列表
-@router.get("/chat-threads", summary="查询会话列表", response_model=list[ChatResponse])
+@router.get("/chat-threads", summary="查询会话列表",
+            response_model=list[ChatResponse])
 async def get_chats(
         user_id: Annotated[int, Header(alias="x-user-id")],
         service: ChatService = Depends(get_service)
@@ -44,7 +46,8 @@ async def get_chats(
 
 
 # 修改会话名
-@router.patch("/chat-threads/{thread_id}", summary="修改会话名", response_model=ChatResponse)
+@router.patch("/chat-threads/{thread_id}",
+              summary="修改会话名", response_model=ChatResponse)
 async def update_chat_title(
         request: CreateChatRequest,
         thread_id: UUID,
@@ -55,7 +58,8 @@ async def update_chat_title(
 
 
 # 删除会话
-@router.delete("/chat-threads/{thread_id}", summary="删除会话", response_model=ChatResponse)
+@router.delete("/chat-threads/{thread_id}",
+               summary="删除会话", response_model=ChatResponse)
 async def delete_chat(
         thread_id: UUID,
         user_id: Annotated[int, Header(alias="x-user-id")],
@@ -67,10 +71,22 @@ async def delete_chat(
 
 
 """聊天管理"""
-@router.post("/chat", summary="与AI聊天")
+@router.post("/chat", summary="与AI聊天",
+             response_class=EventSourceResponse)
 async def chat_stream(
     chat_request: ChatRequest,
     user_id: Annotated[int, Header(alias="x-user-id")],
     service: ChatService = Depends(get_service)
 ):
-    return await service.chat_stream(chat_request.thread_id, user_id, chat_request.message)
+    async for sse in service.chat_stream(chat_request.thread_id, user_id, chat_request.message):
+        yield sse
+
+@router.get("/chat-threads/{thread_id}/messages",
+            summary="获取聊天消息", response_model=ChatHistoryResponse)
+async def  get_history_message(
+        thread_id: UUID,
+        user_id: Annotated[int, Header(alias="x-user-id")],
+        service: ChatService = Depends(get_service)
+):
+    return await service.get_history_message(thread_id, user_id)
+

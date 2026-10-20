@@ -1,11 +1,13 @@
 from uuid import UUID
 
-from langchain_core.messages import HumanMessage
+from fastapi.sse import ServerSentEvent
+from langchain_core.messages import HumanMessage, BaseMessage, AIMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 from langgraph.graph.state import CompiledStateGraph
 from .exceptions import ChatThreadNotFoundError
 from .models import Chat
 from .repository import ChatRepository
+from .schemas import ChatHistoryResponse, ChatMessageResponse
 
 
 class ChatService:
@@ -59,6 +61,8 @@ class ChatService:
             # 为空抛出异常
             if chat is None:
                 raise ChatThreadNotFoundError
+            # 删除聊天记录
+            await self.agent.checkpointer.adelete_thread(str(chat_id))
             # 正确查询出会话对象后删除
             await self.repository.delete_chat(chat)
 
@@ -80,10 +84,42 @@ class ChatService:
         _config = {
             "configurable":{"thread_id": str(thread_id)}
         }
+
         # 通过智能体将消息发送给大模型
-        response = await self.agent.ainvoke(
+        response = await self.agent.astream_events(
             _input,
-            _config
+            _config,
+            version="v3"
         )
         # 从返回值中解析到最后一条消息，再拿出来其中的内容
-        return response["messages"][-1].content
+        async for message in response.messages:
+            async for text in message.text:
+                # 在这儿拿到一个消息片段之后，使用yield，将数据组装成SSE对象放到了一个管道（流）中，往下游流
+                yield ServerSentEvent(event="message", data=text)
+        yield ServerSentEvent(event="done", data="END")
+
+    async def get_history_message(self, thread_id: UUID, user_id: int):
+        chat = await self.repository.find_owned(thread_id, user_id)
+        if chat is None:
+            return ChatThreadNotFoundError
+        # 获取历史记录
+        _config = {
+            "configurable": {"thread_id": str(thread_id)}
+        }
+        snapshot = await self.agent.aget_state(_config)
+        message_list: list[BaseMessage] = snapshot.values.get("messages", [])
+
+        # 进行对象封装
+        messages: list[ChatMessageResponse] = []
+        for message in message_list:
+            if isinstance(message, HumanMessage):
+                messages.append(
+                    ChatMessageResponse(role="user", content=message.text)
+                )
+            if isinstance(message, AIMessage):
+                messages.append(
+                    ChatMessageResponse(role="assistant", content=message.text)
+                )
+            else:
+                continue
+        return ChatHistoryResponse(thread_id=thread_id, messages=messages)
