@@ -70,6 +70,13 @@ class LoggingSettings(EnvSettings):
 class RAGSettings(EnvSettings):
     """RAG相关配置"""
     mineru_token: str = Field(alias="MINERU_TOKEN")
+    milvus_host: str = Field(alias="MILVUS_HOST", default="127.0.0.1")
+    milvus_port: int = Field(alias="MILVUS_PORT", default=19530)
+
+    @computed_field
+    @property
+    def milvus_url(self) -> str:
+        return f"http://{self.milvus_host}:{self.milvus_port}"
 
 class Settings(BaseSettings):
     app: AppSettings = Field(default_factory=AppSettings)
