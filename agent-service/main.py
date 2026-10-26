@@ -28,9 +28,13 @@ async def lifespan(app: FastAPI):
     from app.agents.insurance_advisor import init_insurance_agent
     agent = init_insurance_agent(checkpointer)
     app.state.agent = agent
+    # 导入RAG资源释放函数，第一次加载模块级别的流水线和检索器
+    from app.rag import close
     yield
 
     # 项目关闭时执行
+    # 释放RAG资源
+    close()
     # 销毁checkpointer
     await close_checkpointer()
     # 销毁引擎
