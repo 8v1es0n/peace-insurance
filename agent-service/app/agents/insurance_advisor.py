@@ -19,7 +19,7 @@ SYSTEM_PROMPT = """
 - 回答要简短、精确，不要长篇大论。
 """
 
-def init_insurance_agent(checkpointer: AsyncPostgresSaver):
+def init_insurance_advisor():
     # 准备模型
     model = init_chat_model(
         model="deepseek-v4-flash",
@@ -34,7 +34,7 @@ def init_insurance_agent(checkpointer: AsyncPostgresSaver):
     agent = create_agent(
         model=model,
         tools=tools,
-        checkpointer=checkpointer,
+        checkpointer=True,
         system_prompt=SYSTEM_PROMPT
     )
 

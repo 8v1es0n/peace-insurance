@@ -92,16 +92,32 @@ class ChatService:
             version="v3"
         )
         # 从返回值中解析到最后一条消息，再拿出来其中的内容
-        async for message in response.messages:
-            async for text in message.text:
-                # 在这儿拿到一个消息片段之后，使用yield，将数据组装成SSE对象放到了一个管道（流）中，往下游流
-                yield ServerSentEvent(event="message", data=text)
+        # async for message in response.messages:
+        #     async for text in message.text:
+        #         # 在这儿拿到一个消息片段之后，使用yield，将数据组装成SSE对象放到了一个管道（流）中，往下游流
+        #         yield ServerSentEvent(event="message", data=text)
+        # yield ServerSentEvent(event="done", data="END")
+        async for event in response:
+            method = event["method"]
+            if method != "messages":
+                continue
+            data, metadata = event["params"]["data"]
+            if metadata["langgraph_node"] == "router":
+                if isinstance(data, AIMessage):
+                    yield ServerSentEvent(event="message", data=data.text)
+            else:
+                # print(data.pretty_print())
+                if isinstance(data, AIMessage):
+                    yield ServerSentEvent(event="message", data=data.text)
+                else:
+                    if data.get("delta") and data.get("delta").get("text"):
+                        yield ServerSentEvent(event="message", data=data.get("delta").get("text"))
         yield ServerSentEvent(event="done", data="END")
 
     async def get_history_message(self, thread_id: UUID, user_id: int):
         chat = await self.repository.find_owned(thread_id, user_id)
         if chat is None:
-            return ChatThreadNotFoundError
+            raise ChatThreadNotFoundError
         # 获取历史记录
         _config = {
             "configurable": {"thread_id": str(thread_id)}

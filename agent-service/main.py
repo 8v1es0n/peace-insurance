@@ -20,12 +20,18 @@ logger = get_logger(__name__)
 async def lifespan(app: FastAPI):
     # 项目启动时执行
     from app.infra.database import check_database, close_database
-    # 1. 初始化连接
+    # 初始化连接
     await check_database()
-    # 2. 初始化checkpointer连接池
+    # 初始化checkpointer连接池
     from app.infra.checkpointer import init_checkpointer, close_checkpointer
     checkpointer = await init_checkpointer()
-    from app.agents.insurance_advisor import init_insurance_agent
+
+    #  创建保险顾问智能体
+    # from app.agents.insurance_advisor import init_insurance_agent
+    # agent = await init_insurance_agent(checkpointer)
+    # app.state.agent = agent
+    # 优化:使用完整的主图，代替原来的智能体
+    from app.agents.orchestrator import init_insurance_agent
     agent = init_insurance_agent(checkpointer)
     app.state.agent = agent
     # 导入RAG资源释放函数，第一次加载模块级别的流水线和检索器
